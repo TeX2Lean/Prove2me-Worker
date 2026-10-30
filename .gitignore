@@ -1,0 +1,6 @@
+.lake/
+.build-output/
+lake-manifest.json
+*.olean
+*.ilean
+__pycache__/

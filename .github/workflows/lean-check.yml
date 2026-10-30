@@ -1,0 +1,40 @@
+name: Lean worker verification
+on:
+  push:
+    branches: [main]
+    paths: ['.build/request.json']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lean-worker-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Validate approved worker snapshot
+        run: python3 ci/check.py preflight
+      - name: Reuse worker dependency cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .lake/packages
+          key: lean-worker-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'ci/bootstrap.sh') }}
+      - name: Prepare pinned Lean dependencies
+        run: bash ci/bootstrap.sh
+      - name: Compile approved mathematical sources
+        run: python3 ci/check.py compile --timeout 2400
+      - name: Save compiler evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: lean-build-${{ github.sha }}
+          path: .build-output/
+          retention-days: 7
+          include-hidden-files: true
+          if-no-files-found: warn
